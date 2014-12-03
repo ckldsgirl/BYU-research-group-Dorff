@@ -1,0 +1,142 @@
+import csv
+import re
+import numpy as np
+import os.path
+from nltk.stem.snowball import SnowballStemmer
+
+stop_words = ["a", "about", "above", "after", "again", "against", "all", "am", "an", "and", "any", "are", "aren't", "as", "at", "be",
+              "because", "been", "before", "being", "below", "between", "both", "but", "by", "can't", "cannot", "could", "couldn't", 
+              "did", "didn't", "do", "does", "doesn't", "doing", "don't", "down", "during", "each", "few", "for", "from", "further",
+              "had", "hadn't", "has", "hasn't", "have", "haven't", "having", "he", "he'd", "he'll", "he's", "her", "here", "here's",
+              "hers", "herself", "him", "himself", "his", "how", "how's", "i", "i'd", "i'll", "i'm", "i've", "if", "in", "into", "is", "isn't",
+              "it", "it's", "its", "itself", "let's", "me", "more", "most", "mustn't", "my", "myself", "no", "nor", "not", "of", "off", 
+              "on", "once", "only", "or", "other", "ought", "our", "ours", "ourselves", "out", "over", "own", "same", "shan't", "she", 
+              "she'd", "she'll", "she's", "should", "shouldn't", "so", "some", "such", "than", "that", "that's", "the", "their", "theirs",
+              "them", "themselves", "then", "there", "there's", "these", "they", "they'd", "they'll", "they're", "they've", "this", 
+              "those", "through", "to", "too", "under", "until", "up", "very", "was", "wasn't", "we", "we'd", "we'll", "we're", "we've",
+              "were", "weren't", "what", "what's", "when", "when's", "where", "where's", "which", "while", "who", "who's", "whom", "why",
+              "why's", "will", "with", "won't", "would", "wouldn't", "you", "you'd", "you'll", "you're", "you'r", "you've", "your", "yours", "yourself",
+              "yourselves", "get", "eat", "i'v"]
+              
+words = {}
+weighted_words = {}
+scores = {}
+score_line = {}
+place_names = []
+lines = {}
+num_words = {}
+snowball_stemmer = SnowballStemmer("english")
+                    
+path = "C:\\Users\\Catherine1\\Documents\\IPython Notebooks"
+for filename in os.listdir(path):
+    if filename.endswith(".csv") and not filename.endswith("place scores.csv") and not filename.endswith("word bank.csv"):
+        with open(filename) as file:
+            print filename
+            reader = csv.reader(file)
+
+            for line in reader:
+                #get rid of all non-alpha chars or spaces
+                A = re.sub('[^A-Z^a-z\ \']+', " ", line[1])
+                #changes all to lowercase
+                B = A.lower()
+                text = list(B.split())
+
+                #go through list of words, add to dict(words) if not there already, add to line[0] col in arr
+                for x in text:
+                    x = snowball_stemmer.stem(x)
+                    if (x not in stop_words):
+                        if (x not in words):
+                            words[x]=np.zeros(6)
+                        num = float(line[0])
+                        words[x][num-1] += 1
+
+#weighting scores
+for x in words:
+    words[x][5] = (-10 * words[x][0]) + (-5 * words[x][1]) + (1 *words[x][2]) + (5 * words[x][3]) + (10 * words[x][4])
+    
+#giving actual weight between -5 and 5
+for x in words:
+    num = (1*words[x][5])
+    if (x not in weighted_words):
+        weighted_words[x]=np.zeros(1)
+    if(num >= -63 and num <= -5):
+        weighted_words[x][0] = -5
+    if(num >= -4 and num <= 1):
+        weighted_words[x][0] = -4
+    if(num >= 2 and num <= 5):
+        weighted_words[x][0] = -3
+    if(num >= 6 and num <= 7):
+        weighted_words[x][0] = -2
+    if(num >= 8 and num <= 10):
+        weighted_words[x][0] = -1
+    if(num >= 11 and num <= 12):
+        weighted_words[x][0] = 0
+    if(num >= 13 and num <= 15):
+        weighted_words[x][0] = 1
+    if(num >= 16 and num <= 21):
+        weighted_words[x][0] = 2
+    if(num >= 22 and num <= 41):
+        weighted_words[x][0] = 3
+    if(num >= 42 and num <= 100):
+        weighted_words[x][0] = 4
+    if(num >= 101 and num <= 8169):
+        weighted_words[x][0] = 5
+    
+#writing vals to .csv
+with open("word bank.csv", 'wb') as csvfile:
+        writer = csv.writer(csvfile, dialect='excel')
+
+        for x in words:
+            writer.writerow([x] + [words[x][0]] + [words[x][1]] + [words[x][2]] + [words[x][3]] + [words[x][4]] + [words[x][5]] + [" "] + [weighted_words[x][0]])
+            
+#fin
+print "\ndone with part 1, creating word bank.csv\n"
+
+#weight reviews from each place
+path = "C:\\Users\\Catherine1\\Documents\\IPython Notebooks"
+for filename in os.listdir(path):
+    if filename.endswith(".csv") and not filename.endswith("place scores.csv") and not filename.endswith("word bank.csv"):
+        with open(filename) as file:
+            print filename + " weighted"
+            place_names.append(filename)
+            reader = csv.reader(file)
+            scores[filename] = 0
+            lines[filename] = 0
+            
+            for line in reader:
+                #get rid of all non-alpha chars or spaces
+                A = re.sub('[^A-Z^a-z\ \']+', " ", line[1])
+                #changes all to lowercase
+                B = A.lower()
+                text = list(B.split())
+                lines[filename] += 1
+                            
+            #go through list of words, score them
+                for x in text:
+                    num_words[filename] = 0
+                    score_line[filename] = 0
+                    x = snowball_stemmer.stem(x)
+                    if (x in weighted_words):
+                        score_line[filename] += weighted_words[x][0]
+                        num_words[filename] += 1
+                        
+                if num_words[filename] != 0:
+                    #avg score for each line
+                    scores[filename] += score_line[filename]/num_words[filename]
+                else:
+                    scores[filename] += 0
+                    
+            
+#writing vals to .csv
+with open("place scores.csv", 'wb') as csvfile:
+        writer = csv.writer(csvfile, dialect='excel')
+
+        for x in place_names:
+            if lines[x] != 0:
+                avg = scores[x] / lines[x]
+            else:
+                avg = 0
+            writer.writerow([x] + [scores[x]] + [avg] + [lines[x]])
+            
+#fin
+print "\ndone with part 2, creating place scores.csv\n"
