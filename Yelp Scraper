@@ -1,0 +1,60 @@
+import requests
+import csv
+import bs4
+
+business_page = bs4.SoupStrainer("div", attrs={'class':'search-result natural-search-result biz-listing-large'})
+review_wrapper = bs4.SoupStrainer("div", attrs={'class':'review-wrapper'})
+
+base_url = "http://www.yelp.com"
+for x in ['00', '10', '20','30', '40', '50']:
+    URL = base_url+"/search?cflt=pizza&amp;find_loc=Provo%2C+UT&amp;start="+x
+    print "URL is: " + URL + "\n"
+    blistings=requests.get(URL)
+
+    bsoup = bs4.BeautifulSoup(blistings.content, parse_only=business_page)
+    for business in bsoup.contents[1:]:
+        binfo = business.find('a')        
+        blink = binfo.attrs['href']
+        
+        name = binfo.findChild('img').attrs["alt"]
+        print name    
+       
+        file_name = name + '.csv'
+        
+        rating, review = [], []
+        
+        for x in ['00', '40', '80', '120', '160']:
+            reviewpage = requests.get(base_url+blink + '?start=' + x)
+            rsoup = bs4.BeautifulSoup(reviewpage.content, parse_only=review_wrapper)
+            
+            
+            for reviews in rsoup.contents[1:]:
+                rating.append(float(reviews.find('meta', attrs={'itemprop':'ratingValue'}).attrs['content']))
+                review.append((reviews.find('p', attrs={'itemprop': 'description'}).text).encode('ascii', 'ignore'))
+            
+    
+        with open(file_name, 'wb') as csvfile:
+            writer = csv.writer(csvfile, dialect='excel')
+
+            for x in zip(rating, review):
+                writer.writerow(x)
+        
+  #this block should only be run if we find one missing- this will scrape one yelp page specifically
+file_name = "<insert name of place here>" + '.csv'
+        
+rating, review = [], []
+        
+for x in ['00', '40', '80', '120', '160']:
+    reviewpage = requests.get("<insert place URL here>" + '?start=' + x)
+    rsoup = bs4.BeautifulSoup(reviewpage.content, parse_only=review_wrapper)
+                
+                
+    for reviews in rsoup.contents[1:]:
+        rating.append(float(reviews.find('meta', attrs={'itemprop':'ratingValue'}).attrs['content']))
+        review.append((reviews.find('p', attrs={'itemprop': 'description'}).text).encode('ascii', 'ignore'))
+           
+        with open(file_name, 'wb') as csvfile:
+            writer = csv.writer(csvfile, dialect='excel')
+            
+            for x in zip(rating, review):
+                writer.writerow(x)
